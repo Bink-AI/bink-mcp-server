@@ -22,27 +22,31 @@ import {
     NetworkName,
 } from '@binkai/core';
 import { SwapPlugin } from '@binkai/swap-plugin';
-import { PancakeSwapProvider } from '@binkai/pancakeswap-provider';
-// import { OkxProvider } from '@binkai/okx-provider';
 import { TokenPlugin } from '@binkai/token-plugin';
 import { BirdeyeProvider } from '@binkai/birdeye-provider';
 import { WalletPlugin } from '@binkai/wallet-plugin';
 import { BnbProvider } from '@binkai/rpc-provider';
-// import { FourMemeProvider } from '@binkai/four-meme-provider';
 import { BridgePlugin } from '@binkai/bridge-plugin';
 import { deBridgeProvider } from '@binkai/debridge-provider';
+
 import { JupiterProvider } from '@binkai/jupiter-provider';
 import { AlchemyProvider } from '@binkai/alchemy-provider';
 import { ThenaProvider } from '@binkai/thena-provider';
-
+import { PancakeSwapProvider } from "@binkai/pancakeswap-provider";
+import { FourMemeProvider } from "@binkai/four-meme-provider";
+import { VenusProvider } from "@binkai/venus-provider";
+import { OkuProvider } from "@binkai/oku-provider";
+import { KyberProvider } from "@binkai/kyber-provider";
 import { KnowledgePlugin } from '@binkai/knowledge-plugin';
 import { BinkProvider } from '@binkai/bink-provider';
 import { ImagePlugin } from '@binkai/image-plugin';
 import { ethers } from 'ethers';
+import { StakingPlugin } from "@binkai/staking-plugin";
 import { Connection } from '@solana/web3.js';
 import 'dotenv/config';
 import { formatError } from "./utils";
 import { MCPAgent } from "./mcp-agent";
+import { JsonRpcProvider } from "ethers";
 
 
 // Hardcoded RPC URLs for demonstration
@@ -79,18 +83,18 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
                 },
             },
         },
-        // [NetworkName.SOLANA]: {
-        //     type: 'solana' as NetworkType,
-        //     config: {
-        //         rpcUrl: SOL_RPC,
-        //         name: 'Solana',
-        //         nativeCurrency: {
-        //             name: 'Solana',
-        //             symbol: 'SOL',
-        //             decimals: 9,
-        //         },
-        //     },
-        // },
+        [NetworkName.SOLANA]: {
+            type: 'solana' as NetworkType,
+            config: {
+                rpcUrl: SOL_RPC,
+                name: 'Solana',
+                nativeCurrency: {
+                    name: 'Solana',
+                    symbol: 'SOL',
+                    decimals: 9,
+                },
+            },
+        },
     };
     console.log('✓ Networks configured:', Object.keys(networks).join(', '), '\n');
 
@@ -122,6 +126,7 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
     console.log('🤖 Wallet ETH:', await wallet.getAddress(NetworkName.ETHEREUM));
     // Create an agent with OpenAI
     console.log('🤖 Initializing AI agent...');
+    
     const agent = new MCPAgent(
         wallet,
         networks,
@@ -138,23 +143,38 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
     console.log('🔍 Initializing token plugin...');
     const tokenPlugin = new TokenPlugin();
 
+    console.log('🔍 Initializing token plugin...');
+    const stakingPlugin = new StakingPlugin();
+
     // Create Birdeye provider with API key
     const birdeye = new BirdeyeProvider({
         apiKey: settings.get('BIRDEYE_API_KEY'),
     });
+    const bnbProvider = new BnbProvider({
+        rpcUrl: BNB_RPC,
+    });
+    const bscProvider = new JsonRpcProvider(BNB_RPC);
 
     const thena = new ThenaProvider(provider, 56);
+    const pancakeswap = new PancakeSwapProvider(bscProvider, 56);
+    const fourMeme = new FourMemeProvider(bscProvider, 56);
+    const venus = new VenusProvider(bscProvider, 56);
+    const oku = new OkuProvider(bscProvider, 56);
+    const kyber = new KyberProvider(bscProvider, 56);
+    const jupiter = new JupiterProvider(new Connection(SOL_RPC))
+
     const alchemy = new AlchemyProvider({
         apiKey: settings.get('ALCHEMY_API_KEY'),
     });
 
+    const debridge = new deBridgeProvider(
+        [bscProvider, new Connection(SOL_RPC)],56,7565164,);
     // Create and configure the wallet plugin
     console.log('🔄 Initializing wallet plugin...');
     const walletPlugin = new WalletPlugin();
     // Create provider with API key
-    const bnbProvider = new BnbProvider({
-        rpcUrl: BNB_RPC,
-    });
+ 
+    // const knowledgePlugin = new KnowledgePlugin();
 
     // Initialize plugin with provider
     await walletPlugin.initialize({
@@ -162,9 +182,34 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
         supportedChains: ['bnb', 'solana'],
     });
 
+      await swapPlugin.initialize({
+        defaultSlippage: 0.5,
+        defaultChain: "bnb",
+        providers: [pancakeswap, fourMeme, thena, oku, kyber, jupiter],
+        supportedChains: ['bnb','solana'],
+    });
+
+    await tokenPlugin.initialize({
+        defaultChain: "bnb",
+        providers: [birdeye],
+        supportedChains: ["solana", "bnb", "ethereum"],
+      }),
+
+    await stakingPlugin.initialize({
+    defaultSlippage: 0.5,
+    defaultChain: "bnb",
+    providers: [venus],
+    supportedChains: ["bnb", "ethereum"],
+    }),
+    await bridgePlugin.initialize({
+    defaultChain: "bnb",
+    providers: [debridge],
+        supportedChains: ["bnb", "solana"],
+      }),
+
     // Register the plugin with the agent
     console.log('🔌 Registering swap plugin with agent...');
-    //   await agent.registerPlugin(swapPlugin);
+    await agent.registerPlugin(swapPlugin);
     console.log('✓ Plugin registered\n');
 
     console.log('🔌 Registering wallet plugin with agent...');
@@ -172,9 +217,16 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
     console.log('✓ Plugin registered\n');
 
     console.log('🔌 Registering token plugin with agent...');
-    //   await agent.registerPlugin(tokenPlugin);
+    await agent.registerPlugin(tokenPlugin);
     console.log('✓ Plugin registered\n');
 
+    console.log('🔌 Registering token plugin with agent...');
+    // await agent.registerPlugin(stakingPlugin);
+    console.log('✓ Plugin registered\n');
+
+    console.log('🔌 Registering token plugin with agent...');
+    // await agent.registerPlugin(bridgePlugin);
+    console.log('✓ Plugin registered\n');
     return agent;
 }
 
