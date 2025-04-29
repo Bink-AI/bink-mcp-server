@@ -147,9 +147,7 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
     const stakingPlugin = new StakingPlugin();
 
     // Create Birdeye provider with API key
-    const birdeye = new BirdeyeProvider({
-        apiKey: settings.get('BIRDEYE_API_KEY'),
-    });
+    
     const bnbProvider = new BnbProvider({
         rpcUrl: BNB_RPC,
     });
@@ -177,12 +175,31 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
     // const knowledgePlugin = new KnowledgePlugin();
 
     // Initialize plugin with provider
+    
+    const providerWallets = [];
+    const providerToken = [];
+
+    const birdeyeApiKey = settings.get('BIRDEYE_API_KEY');
+    const alchemyApiKey = settings.get('ALCHEMY_API_KEY');
+    providerWallets.push(bnbProvider);
+
+    if (birdeyeApiKey) {
+        const birdeye = new BirdeyeProvider({ apiKey: birdeyeApiKey });
+        providerWallets.push(birdeye);
+    }
+
+    if (alchemyApiKey) {
+        const alchemy = new AlchemyProvider({ apiKey: alchemyApiKey });
+        providerWallets.push(alchemy);
+        providerToken.push(alchemy);
+
+    }
     await walletPlugin.initialize({
-        providers: [bnbProvider, birdeye, alchemy],
+        providers: providerWallets,
         supportedChains: ['bnb', 'solana'],
     });
 
-      await swapPlugin.initialize({
+    await swapPlugin.initialize({
         defaultSlippage: 0.5,
         defaultChain: "bnb",
         providers: [pancakeswap, fourMeme, thena, oku, kyber, jupiter],
@@ -191,19 +208,19 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
 
     await tokenPlugin.initialize({
         defaultChain: "bnb",
-        providers: [birdeye],
+        providers: providerToken,
         supportedChains: ["solana", "bnb", "ethereum"],
       }),
 
     await stakingPlugin.initialize({
-    defaultSlippage: 0.5,
-    defaultChain: "bnb",
-    providers: [venus],
-    supportedChains: ["bnb", "ethereum"],
+        defaultSlippage: 0.5,
+        defaultChain: "bnb",
+        providers: [venus],
+        supportedChains: ["bnb", "ethereum"],
     }),
     await bridgePlugin.initialize({
-    defaultChain: "bnb",
-    providers: [debridge],
+        defaultChain: "bnb",
+        providers: [debridge],
         supportedChains: ["bnb", "solana"],
       }),
 
@@ -221,11 +238,11 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
     console.log('✓ Plugin registered\n');
 
     console.log('🔌 Registering token plugin with agent...');
-    // await agent.registerPlugin(stakingPlugin);
+    await agent.registerPlugin(stakingPlugin);
     console.log('✓ Plugin registered\n');
 
     console.log('🔌 Registering token plugin with agent...');
-    // await agent.registerPlugin(bridgePlugin);
+    await agent.registerPlugin(bridgePlugin);
     console.log('✓ Plugin registered\n');
     return agent;
 }
