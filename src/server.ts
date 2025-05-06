@@ -10,7 +10,9 @@ import {
     ReadResourceRequestSchema,
     ListToolsRequestSchema,
     CallToolRequest,
-    Tool
+    Tool,
+    ListPromptsRequestSchema,
+    GetPromptRequestSchema
 } from "@modelcontextprotocol/sdk/types.js";
 import {
     Agent,
@@ -44,9 +46,11 @@ import { ethers } from 'ethers';
 import { StakingPlugin } from "@binkai/staking-plugin";
 import { Connection } from '@solana/web3.js';
 import 'dotenv/config';
-import { formatError } from "./utils";
+import { formatError, promptArgumentsFromSchema } from "./utils";
 import { MCPAgent } from "./mcp-agent";
 import { JsonRpcProvider } from "ethers";
+import { prompts } from "./prompts";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 
 // Hardcoded RPC URLs for demonstration
@@ -259,7 +263,8 @@ export async function createServer() {
         version: "1.0.0"
     }, {
         capabilities: {
-            tools: {}
+            tools: {},
+            prompts: {}
         }
     });
 
@@ -291,7 +296,6 @@ export async function createServer() {
         }
     };
 }
-
 /**
  * Set up server request handlers
  */
@@ -333,6 +337,24 @@ function setupRequestHandlers(server: Server, agent: MCPAgent) {
     // Handle tool listing
     server.setRequestHandler(ListToolsRequestSchema, async () => {
         return { tools: agent.getMcpTools() };
+    });
+
+    // // Handle prompt listing
+    server.setRequestHandler(ListPromptsRequestSchema, async () => {
+        return { prompts: prompts.map(prompt => ({ name: prompt.name, description: prompt.description, arguments: prompt.arguments ? promptArgumentsFromSchema(prompt.arguments) : undefined })) };
+    });
+
+    server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+        const promptName = request.params.name;
+        const prompt = prompts.find(p => p.name === promptName);
+
+        if (!prompt) {
+            throw new McpError(ErrorCode.InvalidParams, `Prompt ${promptName} not found`);
+        }
+
+        const parseArgs = await prompt?.arguments?.safeParseAsync(request.params.arguments)
+
+        return await Promise.resolve(prompt?.handler(parseArgs?.data as any) as any);
     });
 
     // Handle global errors

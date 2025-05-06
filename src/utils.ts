@@ -15,3 +15,11 @@ export function formatError(error: unknown): string {
     }
     return String(error);
 }
+
+export function promptArgumentsFromSchema(schema: any) {
+    return Object.entries(schema.shape).map(([name, field]: [string, any]) => ({
+        name,
+        description: field.description,
+        required: !field.isOptional(),
+    }));
+}
