@@ -22,6 +22,7 @@ import {
     NetworkType,
     NetworksConfig,
     NetworkName,
+    logger
 } from '@binkai/core';
 import { SwapPlugin } from '@binkai/swap-plugin';
 import { TokenPlugin } from '@binkai/token-plugin';
@@ -59,7 +60,7 @@ const ETH_RPC = 'https://eth.llamarpc.com';
 const SOL_RPC = 'https://api.mainnet-beta.solana.com';
 
 async function createBinkMCPAgent(): Promise<MCPAgent> {
-    console.log('📡 Configuring networks...');
+    logger.disable();
     const networks: NetworksConfig['networks'] = {
         bnb: {
             type: 'evm' as NetworkType,
@@ -100,19 +101,12 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
             },
         },
     };
-    console.log('✓ Networks configured:', Object.keys(networks).join(', '), '\n');
-    // Initialize network
-    console.log('🌐 Initializing network...');
     const network = new Network({ networks });
-    console.log('✓ Network initialized\n');
 
     // Initialize provider
-    console.log('🔌 Initializing provider...');
     const provider = new ethers.JsonRpcProvider(BNB_RPC);
-    console.log('✓ Provider initialized\n');
 
     // Initialize a new wallet
-    console.log('👛 Creating wallet...');
     const wallet = new Wallet(
         {
             seedPhrase:
@@ -123,30 +117,17 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
         network,
     );
 
-    console.log('✓ Wallet created\n');
-
-    console.log('🤖 Wallet BNB:', await wallet.getAddress(NetworkName.BNB));
-    console.log('🤖 Wallet ETH:', await wallet.getAddress(NetworkName.ETHEREUM));
-    // Create an agent with OpenAI
-    console.log('🤖 Initializing AI agent...');
     
     const agent = new MCPAgent(
         wallet,
         networks,
     );
-    console.log('✓ Agent initialized\n');
-
-    // Create and configure the swap plugin
-    console.log('🔄 Initializing swap plugin...');
     const swapPlugin = new SwapPlugin();
 
-    console.log('🔄 Initializing bridge plugin...');
     const bridgePlugin = new BridgePlugin();
 
-    console.log('🔍 Initializing token plugin...');
     const tokenPlugin = new TokenPlugin();
 
-    console.log('🔍 Initializing token plugin...');
     const stakingPlugin = new StakingPlugin();
 
     // Create Birdeye provider with API key
@@ -171,7 +152,6 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
     const debridge = new deBridgeProvider(
         [bscProvider, new Connection(SOL_RPC)],56,7565164,);
     // Create and configure the wallet plugin
-    console.log('🔄 Initializing wallet plugin...');
     const walletPlugin = new WalletPlugin();
     // Create provider with API key
  
@@ -228,25 +208,15 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
       }),
 
     // Register the plugin with the agent
-    console.log('🔌 Registering swap plugin with agent...');
     await agent.registerPlugin(swapPlugin);
-    console.log('✓ Plugin registered\n');
 
-    console.log('🔌 Registering wallet plugin with agent...');
     await agent.registerPlugin(walletPlugin);
-    console.log('✓ Plugin registered\n');
 
-    console.log('🔌 Registering token plugin with agent...');
     await agent.registerPlugin(tokenPlugin);
-    console.log('✓ Plugin registered\n');
 
-    console.log('🔌 Registering token plugin with agent...');
     await agent.registerPlugin(stakingPlugin);
-    console.log('✓ Plugin registered\n');
 
-    console.log('🔌 Registering token plugin with agent...');
     await agent.registerPlugin(bridgePlugin);
-    console.log('✓ Plugin registered\n');
     return agent;
 }
 
@@ -254,7 +224,6 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
  * Create and configure MCP server
  */
 export async function createServer() {
-    console.log("Creating BinkAI MCP server");
 
     // Create server instance
     const server = new Server({
@@ -279,18 +248,16 @@ export async function createServer() {
         start: async () => {
             try {
                 await server.connect(transport);
-                console.log("Server started successfully");
             } catch (error) {
-                console.log("Failed to start server:", error);
+                console.error("Failed to start server:", error);
                 throw error;
             }
         },
         stop: async () => {
             try {
                 await server.close();
-                console.log("Server stopped");
             } catch (error) {
-                console.log("Error stopping server:", error);
+                console.error("Error stopping server:", error);
             }
         }
     };
@@ -304,7 +271,6 @@ function setupRequestHandlers(server: Server, agent: MCPAgent) {
         const toolName = request.params.name;
         const toolArgs = request.params.arguments;
 
-        console.log(`Tool call received: ${toolName}`);
         try {
             const response = await agent.invokeTool(toolName, toolArgs);
 
@@ -358,10 +324,10 @@ function setupRequestHandlers(server: Server, agent: MCPAgent) {
 
     // Handle global errors
     process.on("uncaughtException", (error) => {
-        console.log("Uncaught exception:", error);
+        console.error("Uncaught exception:", error);
     });
 
     process.on("unhandledRejection", (reason) => {
-        console.log("Unhandled rejection:", reason);
+        console.error("Unhandled rejection:", reason);
     });
 }

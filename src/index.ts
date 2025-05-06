@@ -6,17 +6,15 @@ import { createServer } from "./server.js";
  */
 async function main() {
   try {
-    console.log("Starting BinkAI MCP server");
     const server = await createServer();
 
     // Start server
     await server.start();
-    console.log("Server started successfully");
 
     // Handle process exit signals
     setupExitHandlers(server);
   } catch (error) {
-    console.log("Failed to start server:", error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 }
