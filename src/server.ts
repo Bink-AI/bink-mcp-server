@@ -101,7 +101,6 @@ async function createBinkMCPAgent(): Promise<MCPAgent> {
         },
     };
     console.log('✓ Networks configured:', Object.keys(networks).join(', '), '\n');
-
     // Initialize network
     console.log('🌐 Initializing network...');
     const network = new Network({ networks });
