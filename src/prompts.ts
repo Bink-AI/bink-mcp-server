@@ -43,23 +43,23 @@ export const prompts = [
         description: 'Transfer a token form your wallet to another address',
         arguments: z.object({
             token: z.string().describe('The token address to transfer'),
-            toAddress: z.string().describe('The recipient contract address'),
-            amount: z.string().describe('The amount of tokens to transfer'),
+            output_wallet_address: z.string().describe('The recipient contract address'),
+            amount_transfer: z.string().describe('The amount of tokens to transfer'),
             network: z
               .enum(['bnb','solana', 'ethereum'])
               .default('bnb')
-              .describe('The blockchain network to execute the transfer on'),
+              .describe('The blockchain network to transfer on'),
           }),
-        handler: ({ token, toAddress, amount, network }: { token: string, toAddress: string, amount: string, network?: string }) => {
-            if (!token || !toAddress || !amount) {
-                throw new McpError(ErrorCode.InvalidParams, "Please provide a token address, recipient address, and amount");
+        handler: ({ token, output_wallet_address, amount_transfer, network }: { token: string, output_wallet_address: string, amount_transfer: string, network: string }) => {
+            if (!token || !output_wallet_address || !amount_transfer) {
+                throw new McpError(ErrorCode.InvalidParams, "Please provide a token address, recipient contract address, and amount token");
             }
             return {
                 messages: [{
                     role: "user",
                     content: {
                         type: "text",
-                        text: `I want to transfer ${amount} ${token} to ${toAddress} on ${network}.`
+                        text: `I want to transfer ${amount_transfer} ${token} to ${output_wallet_address} on ${network}.`
                     }
                 }]
             }
@@ -69,28 +69,19 @@ export const prompts = [
         name: 'staking-token',
         description: 'Stake and unstake tokens from your wallet using Venus provider',
         arguments: z.object({
-            tokenA: z.string().describe('The token A address staking'),
-            tokenB: z.string().optional().describe('The token B address staking'),
-            amountA: z.string().describe('The amount of token A to stake'),
-            amountB: z.string().optional().describe('The amount of token B to stake'),
-            type: z
-              .enum(['supply', 'withdraw', 'stake', 'unstake'])
-              .describe('The type of staking operation to perform.'),
-            network: z
-              .enum(['bnb','solana', 'ethereum'])
-              .default('bnb')
-              .describe('The blockchain network to execute the staking on'),
-          }),
-        handler: ({ tokenA, tokenB, amountA, amountB, type, network }: { tokenA: string, tokenB?: string, amountA: string, amountB?: string, type: string, network?: string }) => {
-            if (!tokenA ||!amountA) {
-                throw new McpError(ErrorCode.InvalidParams, "Please provide a token address and amount");
-                }
+            input_token_address: z.string().describe('The input token address stake or unstake'),
+            input_token_amount: z.string().describe('The amount of token to stake or unstake'),
+        }),
+        handler: ({ input_token_address, input_token_amount }: { input_token_address: string, input_token_amount: string }) => {
+            if (!input_token_address ||!input_token_amount) {
+                throw new McpError(ErrorCode.InvalidParams, "Please provide a token address and amount for stake or unstake");
+            }
             return {
                 messages: [{
                     role: "user",
                     content: {
                         type: "text",
-                        text: `I want to ${type} ${amountA} ${tokenA} on ${network}.`
+                        text: `I want to stake/unstake ${input_token_amount} ${input_token_address}.`
                     }
                 }]
             }
@@ -100,23 +91,20 @@ export const prompts = [
         name: 'bridge-token',
         description: 'Bridge or swap crosschain tokens from one blockchain to another',
         arguments: z.object({
-            fromNetwork: z
+            input_network: z
               .enum(['bnb','solana', 'ethereum'])
               .describe('The blockchain network to execute the bridge from'),
-            toNetwork: z
+            output_network: z
               .enum(['bnb','solana', 'ethereum'])
               .describe(
                 'The blockchain network to execute the bridge to or on symbor native token. Example: Solana similar SOL or on BNB',
               ),
-            fromToken: z.string().describe('The address of send token'),
-            toToken: z.string().describe(`The address of receive token`),
+            input_token_address: z.string().describe('The address of send token'),
+            ouput_token_address: z.string().describe(`The address of receive token`),
             amount: z.string().describe('The amount of tokens to bridge'),
-            amountType: z
-              .enum(['input', 'output'])
-              .describe('Whether the amount is input (spend) or output (receive)'),
           }),
-        handler: ({ fromNetwork, toNetwork, fromToken, toToken, amount, amountType }: { fromNetwork: string, toNetwork: string, fromToken: string, toToken: string, amount: string, amountType: string }) => {
-            if (!fromToken ||!toToken ||!amount) {
+        handler: ({ input_network, output_network, input_token_address, ouput_token_address, amount }: { input_network: string, output_network: string, input_token_address: string, ouput_token_address: string, amount: string }) => {
+            if (!input_token_address ||!ouput_token_address ||!amount) {
                 throw new McpError(ErrorCode.InvalidParams, "Please provide a token address and amount");
             }
             return {
@@ -124,7 +112,7 @@ export const prompts = [
                     role: "user",
                     content: {
                         type: "text",
-                        text: `I want to ${amountType} ${amount} ${fromToken} on ${fromNetwork} to ${toNetwork} using ${toToken}.`
+                        text: `I want to  bridge ${amount} ${input_token_address} on ${input_network} to ${ouput_token_address} on ${output_network}.`
                     }
                 }]
             }
@@ -133,55 +121,42 @@ export const prompts = [
     {
         name: 'get-balance',
         description: 'Get the balance of my wallet',
-        arguments: z.object({
-            address: z.string().describe('The wallet address to query.'),
-            network: z.enum(['bnb', 'solana', 'ethereum']).optional().default("bnb").describe('The blockchain network to query the wallet on.'),
-           
-        }),
-        handler: ({ address, network }: { address: string, network?: string}) => {
-            if (!address) {
-                throw new McpError(ErrorCode.InvalidParams, "Please provide a wallet address");
-            }
+        handler: () => {
             return {
                 messages: [{
                     role: "user",
                     content: {
                         type: "text",
-                        text: `I want to get the balance of ${address} on ${network}.`
+                        text: `I want to get the balance of my wallet.`
                     }
                 }]
             }
         }
     },
-
     {
         name: 'get-token-info',
         description: 'Get information of a token',
         arguments: z.object({
-            query: z.string().describe('The token address or symbol to query'),
+            token_address: z.string().describe('The token address or symbol to query'),
             network: z
-              .enum(['bnb', 'solana', 'ethereum'])
-              .default('bnb')
-              .describe('The blockchain network to query the token on'),
-            includePrice: z
-              .boolean()
-              .optional()
-              .default(true)
-              .describe('Whether to include price information in the response'),
+             .enum(['bnb','solana', 'ethereum'])
+             .default('bnb')
+             .describe('The blockchain network to execute the bridge from'),
           }),
-        handler: ({query, network, includePrice }: { query: string, network?: string, includePrice?: boolean}) => {
-            if (!query) {
-                throw new McpError(ErrorCode.InvalidParams, "Please provide a token address or symbol");
+        handler: ({token_address, network}: { token_address: string, network?: string}) => {
+            if (!token_address) {
+                throw new McpError(ErrorCode.InvalidParams, "Please provide a token address or network");
             }
             return {
                 messages: [{
                     role: "user",
                     content: {
                         type: "text",
-                        text: `I want to get the token info of ${query} on ${network}.`
+                        text: `I want to get the token info of ${token_address} on ${network}.`
                     }
                 }]
             }
         }
     }
+    
 ];
